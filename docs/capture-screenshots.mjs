@@ -108,4 +108,51 @@ await page.click('[data-action="shortcuts"]');
 await page.waitForTimeout(1500);
 await shot("05-shortcuts.png", "快捷键");
 
+// 放大到节点足够大时，画布会自动在该节点位置加载真实原型（无需选中）。
+await openFresh();
+await page.click('[data-mode="snapshot"]');
+await page.waitForTimeout(800);
+await zoomTo(190);
+await panViaMinimap(0.3, 0.1);
+const liveReady = await page.waitForSelector(".pc-live-frame.is-ready", { timeout: 45000 }).then(() => true).catch(() => false);
+if (!liveReady) {
+  await zoomTo(230);
+  await panViaMinimap(0.3, 0.1);
+  await page.waitForSelector(".pc-live-frame.is-ready", { timeout: 45000 }).catch(() => {});
+}
+await page.waitForTimeout(3000);
+await shot("06-live-prototype.png", "放大自动加载真实原型");
+
+// 双击节点直接进入该节点关联的页面。未关联的节点不会打开原型，所以逐个试到打开为止。
+await openFresh();
+await zoomTo(120);
+const candidates = await page.evaluate(() => {
+  const viewportRect = document.querySelector("[data-viewport]").getBoundingClientRect();
+  return [...document.querySelectorAll("[data-node-id]")]
+    .map(node => ({ node, rect: node.getBoundingClientRect() }))
+    .filter(item => item.rect.width > 90
+      && item.rect.left > viewportRect.left + 30 && item.rect.right < viewportRect.right - 30
+      && item.rect.top > viewportRect.top + 60 && item.rect.bottom < viewportRect.bottom - 30)
+    // 优先挑已关联的节点（未关联的节点双击不会打开原型）；双击位置取标题以下的主体，避免触发"双击标题改名"。
+    .sort((left, right) => Number(Boolean(right.node.querySelector(".pc-bound"))) - Number(Boolean(left.node.querySelector(".pc-bound"))) || left.rect.top - right.rect.top)
+    .slice(0, 8)
+    .map(item => ({ id: item.node.dataset.nodeId, x: item.rect.left + item.rect.width * 0.4, y: item.rect.top + item.rect.height * 0.85 }));
+});
+let opened = false;
+for (const candidate of candidates) {
+  await page.mouse.dblclick(candidate.x, candidate.y);
+  await page.waitForTimeout(1800);
+  opened = await page.evaluate(() => !document.querySelector("[data-prototype-overlay]")?.hidden);
+  if (opened) {
+    console.log(`双击打开原型：${candidate.id}`);
+    break;
+  }
+}
+if (opened) {
+  await page.waitForTimeout(7000);
+  await shot("07-open-prototype.png", "双击进入原型页面");
+} else {
+  console.log("未找到可打开原型的节点，跳过 07");
+}
+
 await browser.close();
