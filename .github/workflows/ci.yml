@@ -1,0 +1,32 @@
+name: 持续集成检查
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装依赖
+        working-directory: prototype-canvas
+        run: npm ci
+
+      - name: 安装浏览器
+        working-directory: prototype-canvas
+        run: npx playwright install chromium
+
+      - name: 脚本语法检查
+        working-directory: prototype-canvas
+        run: find . -name "*.mjs" -not -path "./node_modules/*" -print0 | xargs -0 -n1 node --check
+
+      - name: 运行 Skill 回归
+        working-directory: prototype-canvas
+        run: node scripts/test-skill.mjs

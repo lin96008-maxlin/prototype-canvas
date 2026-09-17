@@ -1,0 +1,4 @@
+interface:
+  display_name: "原型画布"
+  short_description: "为自包含单 HTML 原型生成可导航、可编辑的结构画布"
+  default_prompt: "使用 $prototype-canvas 分析指定的单 HTML 原型，生成并验证自包含原型画布。"

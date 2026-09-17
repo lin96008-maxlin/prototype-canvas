@@ -1,0 +1,28 @@
+{
+  "name": "prototype-canvas-skill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "自包含单 HTML 原型画布生成与本地编辑工具",
+  "bin": {
+    "prototype-canvas": "scripts/prototype-canvas.mjs"
+  },
+  "scripts": {
+    "build": "node scripts/build-runtime.mjs",
+    "test": "node scripts/test-skill.mjs",
+    "test:browser": "node scripts/browser-smoke-v2.mjs && node scripts/generic-binding-smoke-v2.mjs && node scripts/dynamic-binding-smoke.mjs"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "3.1.1",
+    "acorn": "8.18.0",
+    "linkedom": "0.18.13",
+    "lucide": "1.44.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.63.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
