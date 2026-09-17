@@ -55,6 +55,42 @@ const shot = async (name, label) => {
   await page.screenshot({ path: path.join(outDir, name), type: "png" });
   console.log(`已生成 ${name}（${label}）`);
 };
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+// 用空格 + 拖拽把指定节点移到画面正中央（起点必须落在空白处，否则会变成拖动节点本身）。
+const centerNode = async nodeId => {
+  for (let pass = 0; pass < 4; pass += 1) {
+    const info = await page.evaluate(id => {
+      const node = document.querySelector(`[data-node-id="${id}"]`);
+      const viewportRect = document.querySelector("[data-viewport]").getBoundingClientRect();
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      let start = null;
+      for (let y = viewportRect.top + 150; y < viewportRect.bottom - 150 && !start; y += 80) {
+        for (let x = viewportRect.left + 200; x < viewportRect.right - 700; x += 90) {
+          const element = document.elementFromPoint(x, y);
+          if (element && !element.closest("[data-node-id]") && !element.closest(".pc-minimap,.pc-inspector")) { start = { x, y }; break; }
+        }
+      }
+      return {
+        nodeCenter: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+        viewportCenter: { x: viewportRect.left + viewportRect.width / 2, y: viewportRect.top + viewportRect.height / 2 },
+        start
+      };
+    }, nodeId);
+    if (!info?.start) return false;
+    const dx = clamp(info.viewportCenter.x - info.nodeCenter.x, -520, 520);
+    const dy = clamp(info.viewportCenter.y - info.nodeCenter.y, -420, 420);
+    if (Math.abs(dx) < 14 && Math.abs(dy) < 14) return true;
+    await page.keyboard.down("Space");
+    await page.mouse.move(info.start.x, info.start.y);
+    await page.mouse.down();
+    await page.mouse.move(info.start.x + dx, info.start.y + dy, { steps: 16 });
+    await page.mouse.up();
+    await page.keyboard.up("Space");
+    await page.waitForTimeout(450);
+  }
+  return true;
+};
 
 await page.goto(url, { waitUntil: "load", timeout: 90000 });
 await waitReady();
@@ -113,13 +149,11 @@ await openFresh();
 await page.click('[data-mode="snapshot"]');
 await page.waitForTimeout(800);
 await zoomTo(190);
-await panViaMinimap(0.3, 0.1);
-const liveReady = await page.waitForSelector(".pc-live-frame.is-ready", { timeout: 45000 }).then(() => true).catch(() => false);
-if (!liveReady) {
-  await zoomTo(230);
-  await panViaMinimap(0.3, 0.1);
-  await page.waitForSelector(".pc-live-frame.is-ready", { timeout: 45000 }).catch(() => {});
-}
+await page.waitForTimeout(1200);
+await page.waitForSelector(".pc-live-frame.is-ready", { timeout: 45000 }).catch(() => {});
+// 把加载了真实原型的那个节点移到画面正中央，否则截出来的主体会偏在角落。
+const liveNodeId = await page.evaluate(() => document.querySelector(".pc-live-frame")?.dataset.nodeId || null);
+if (liveNodeId) await centerNode(liveNodeId);
 await page.waitForTimeout(3000);
 await shot("06-live-prototype.png", "放大自动加载真实原型");
 
